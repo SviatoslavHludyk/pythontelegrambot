@@ -5,11 +5,21 @@ from typing import Final
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
-
 # Define constants
 token: Final = "6846468287:AAEx4N19Ox1_RhhoD-gBzunZR2pShCX01pM"
 bot_username: Final = "https://t.me/sv1testpy_bot"
+exchange_rate_api_key: Final = 'YOUR_API_KEY'
 
+# Open-Meteo API
+base_meteo_url: Final = "https://api.open-meteo.com/v1/forecast"
+
+# DataMuse API
+datamuse_base_url: Final = 'https://api.datamuse.com/words'
+
+# Construct exchange rate API URL
+base_currency = 'EUR'
+target_currency = 'UAH'
+exchange_rate_api_url = f"https://open.er-api.com/v6/latest/{base_currency}?apikey={exchange_rate_api_key}"
 
 # Command to start the bot
 async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,18 +42,34 @@ async def handle_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Handler for the 'exchange rate' option
 async def handle_exchange_rate(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Retrieve and send the exchange rate for a specified currency pair
-    base_currency = 'EUR'
-    target_currency = 'UAH'
-    api_key = 'YOUR_API_KEY'
-    exchange_rate_api_url = f"https://open.er-api.com/v6/latest/{base_currency}?apikey={api_key}"
-    response = requests.get(exchange_rate_api_url)
-    response.raise_for_status()
-    exchange_rate_data = response.json()
-    if 'rates' in exchange_rate_data:
-        rate = exchange_rate_data['rates'][target_currency]
-    await context.bot.send_message(chat_id=update.effective_chat.id,
-                                   text=f"Exchange rate: 1 {base_currency} = {rate:.2f} {target_currency}")
+    try:
+        # Retrieve and send the exchange rate for a specified currency pair
+        response = requests.get(exchange_rate_api_url)
+        response.raise_for_status()
+        exchange_rate_data = response.json()
+
+        if 'rates' in exchange_rate_data:
+            rate = exchange_rate_data['rates'].get(target_currency)
+            if rate is not None:
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text=f"Exchange rate: 1 {base_currency} = {rate:.2f} {target_currency}")
+            else:
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text=f"Exchange rate data for {target_currency} not available.")
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text="Unable to retrieve exchange rate data.")
+
+    except requests.exceptions.RequestException as e:
+        print(f"Request error: {e}")
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="Error fetching exchange rate. Please try again later.")
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        await context.bot.send_message(chat_id=update.effective_chat.id,
+                                       text="An unexpected error occurred. Please try again later.")
+
 
 
 # Handler for the 'weather' option
@@ -58,12 +84,11 @@ async def handle_weather(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         except Exception as e:
             print(f"Error getting location: {e}")
-            return None
+            return None, None, None
 
 
     # Function to get the current weather based on location
     def get_weather(latitude, longitude, city):
-        base_url = "https://api.open-meteo.com/v1/forecast"
         params = {
             "forecast": "now",
             "daily": "temperature_2m_max",
@@ -106,14 +131,14 @@ async def handle_weather(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }
 
         # Retrieve weather data and parse information
-        response = requests.get(base_url, params=params)
+        response = requests.get(base_meteo_url, params=params)
         response.raise_for_status()
         weather_data = response.json()
 
         temperature = weather_data["current_weather"]["temperature"]
         description = float(weather_data["current_weather"]["weathercode"])
 
-        weather = weather_dictionary[description]
+        weather = weather_dictionary.get(description, "Unknown")
         return temperature, weather
 
     # Get location, weather, and send the information to the chat
@@ -137,9 +162,8 @@ async def get_synonyms(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         # Retrieve word from the user's message
         word = update.message.text.lower()
-        base_url = 'https://api.datamuse.com/words'
         params = {'rel_syn': word}
-        response = requests.get(base_url, params=params)
+        response = requests.get(datamuse_base_url, params=params)
         response.raise_for_status()
         data = response.json()
 
@@ -163,7 +187,6 @@ async def get_synonyms(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("An unexpected error occurred. Please try again later.")
 
 
-
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Error handler
     print(f'Update {update} caused error {context.error}')
@@ -185,7 +208,6 @@ if __name__ == "__main__":
     # Run the bot with polling
     print("Running...")
     app.run_polling(poll_interval=3)
-
 
 
 
