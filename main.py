@@ -1,25 +1,25 @@
 import datetime
 import requests
 import geocoder
-from typing import Final
+import os
+from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
-# Define constants
-token: Final = "6846468287:AAEx4N19Ox1_RhhoD-gBzunZR2pShCX01pM"
-bot_username: Final = "https://t.me/sv1testpy_bot"
-exchange_rate_api_key: Final = 'YOUR_API_KEY'
 
-# Open-Meteo API
-base_meteo_url: Final = "https://api.open-meteo.com/v1/forecast"
+# Load environment variables from .env file
+load_dotenv()
 
-# DataMuse API
-datamuse_base_url: Final = 'https://api.datamuse.com/words'
+# Access the TOKEN value and other variables
+token = os.getenv("TOKEN")
+bot_username = os.getenv("BOT_USERNAME")
+exchange_rate_api_key = os.getenv("EXCHANGE_RATE_API_KEY")
+base_meteo_url = os.getenv("BASE_METEO_URL")
+datamuse_base_url = os.getenv("DATAMUSE_BASE_URL")
+base_currency = os.getenv("BASE_CURRENCY")
+target_currency = os.getenv("TARGET_CURRENCY")
+exchange_rate_api_url = os.getenv("EXCHANGE_RATE_API_URL")
 
-# Construct exchange rate API URL
-base_currency = 'EUR'
-target_currency = 'UAH'
-exchange_rate_api_url = f"https://open.er-api.com/v6/latest/{base_currency}?apikey={exchange_rate_api_key}"
 
 # Command to start the bot
 async def start_func(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -208,6 +208,14 @@ if __name__ == "__main__":
     # Run the bot with polling
     print("Running...")
     app.run_polling(poll_interval=3)
+
+
+
+
+
+
+
+
 
 
 
